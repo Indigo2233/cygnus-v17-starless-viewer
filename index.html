@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cygnus 4x9 v17 Starless - 伪彩分层浏览</title>
+<style>
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
+  #viewer { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #hint {
+    position: absolute; left: 12px; bottom: 10px; z-index: 100;
+    color: #ccc; background: rgba(0,0,0,0.55); border-radius: 6px;
+    padding: 6px 10px; font: 13px/1.4 "Microsoft YaHei", sans-serif;
+    pointer-events: none;
+  }
+  #topRight {
+    position: absolute; right: 12px; top: 10px; z-index: 100;
+    display: flex; align-items: center; gap: 8px;
+  }
+  #modeBtn, #compBtn, #starBtn {
+    color: #eee; background: rgba(20,20,30,0.65); border: 1px solid #666;
+    border-radius: 6px; padding: 7px 14px;
+    font: 14px/1.4 "Microsoft YaHei", sans-serif; cursor: pointer;
+  }
+  #modeBtn:hover, #compBtn:hover, #starBtn:hover { background: rgba(60,60,80,0.75); }
+  #starBtn.off { color: #888; }
+  body.bw #viewer .openseadragon-canvas { filter: grayscale(1); }
+  #compBtn.on { border-color: #4da6ff; color: #4da6ff; }
+  #compPanel {
+    position: absolute; right: 12px; top: 52px; z-index: 100;
+    width: 232px; background: rgba(15,15,25,0.88); border: 1px solid #555;
+    border-radius: 8px; padding: 10px 12px; color: #ddd;
+    font: 13px/1.8 "Microsoft YaHei", sans-serif;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  #compPanel.hidden { display: none; }
+  #compPanel .compTitle { color: #9cd; font-weight: bold; }
+  #compPanel .compScale { color: #999; font-weight: normal; font-size: 12px; }
+  #compPanel input[type=number] {
+    width: 58px; background: #222; color: #eee; border: 1px solid #555;
+    border-radius: 4px; padding: 2px 6px;
+  }
+  #compPanel select {
+    background: #222; color: #eee; border: 1px solid #555;
+    border-radius: 4px; padding: 2px 4px;
+  }
+  #compPanel input[type=range] { width: 100%; }
+  #compPanel .compHint { color: #888; font-size: 12px; }
+  #fovText { color: #9f9; }
+  #compFrame {
+    position: absolute; border: 1.5px solid #4da6ff;
+    pointer-events: none;
+  }
+  #compFrame.hidden { display: none; }
+  #starLink { text-decoration: none; display: block; }
+  #starLink img { height: 28px; display: block; }
+  #topLeft {
+    position: absolute; left: 12px; top: 10px; z-index: 100;
+    display: flex; align-items: center; gap: 8px;
+  }
+  #likeBtn {
+    color: #eee; background: rgba(20,20,30,0.65); border: 1px solid #666;
+    border-radius: 6px; padding: 6px 14px;
+    font: 16px/1.4 "Microsoft YaHei", sans-serif; cursor: pointer;
+  }
+  #likeBtn:hover { background: rgba(60,60,80,0.75); }
+  #likeBtn.liked,
+  #likeBtn.liked:hover {
+    background: rgba(190,40,40,0.85); border-color: #ff7777; color: #fff;
+    cursor: default;
+  }
+</style>
+</head>
+<body>
+<div id="viewer"></div>
+<div id="hint">鸣谢:肥鸭子（马赛克算法）</div>
+<div id="topLeft">
+  <a id="starLink" href="https://github.com/Indigo2233/cygnus-v17-starless-viewer" target="_blank" rel="noopener" title="在 GitHub 上点赞">
+    <img alt="GitHub stars" src="https://img.shields.io/github/stars/Indigo2233/cygnus-v17-starless-viewer?style=social">
+  </a>
+  <button id="likeBtn" title="点赞（同一浏览器仅一次）">👍</button>
+</div>
+<div id="topRight">
+  <button id="compBtn" title="构图规划">构图</button>
+  <button id="starBtn" title="显示或隐藏实拍 Ha 星点">隐藏星点</button>
+  <button id="modeBtn" title="在伪彩与黑白之间切换">黑白</button>
+</div>
+<div id="compPanel" class="hidden">
+  <div class="compTitle">构图规划 <span class="compScale">采样 1.25″/px</span></div>
+  <label>焦距 <input id="compFocal" type="number" min="10" max="3000" step="1" value="250"> mm</label>
+  <label>传感器
+    <select id="compSensor">
+      <option value="36,24">全画幅 36×24</option>
+      <option value="23.5,15.6" selected>APS-C 23.5×15.6</option>
+      <option value="17.3,13">4/3 17.3×13</option>
+      <option value="23.5,15.7">ASI2600 23.5×15.7</option>
+      <option value="11.3,11.3">ASI533 11.3×11.3</option>
+      <option value="custom">自定义</option>
+    </select>
+  </label>
+  <label>宽 <input id="compW" type="number" min="1" step="0.1" value="23.5"> ×
+    高 <input id="compH" type="number" min="1" step="0.1" value="15.6"> mm</label>
+  <label>旋转 <input id="compRot" type="range" min="0" max="359" step="1" value="0">
+    <span id="compRotVal">0°</span></label>
+  <div id="fovText"></div>
+  <label><input id="compShow" type="checkbox" checked> 显示构图框</label>
+  <div class="compHint">框内即传感器成像范围</div>
+</div>
+<div id="compFrame" class="hidden"></div>
+<script src="openseadragon.min.js"></script>
+<script>
+var viewer = OpenSeadragon({
+    id: "viewer",
+    prefixUrl: "images/",
+    // The star layer is composited with "lighter", which the WebGL drawer that
+    // version 5 prefers does not implement.
+    drawer: "canvas",
+    tileSources: {
+        Image: {
+            xmlns: "http://schemas.microsoft.com/deepzoom/2008",
+            Url: "cygnus_v17A_files/",
+            Format: "jpg",
+            Overlap: "0",
+            TileSize: "512",
+            Size: { Width: "31810", Height: "45863" }
+        }
+    },
+    showNavigator: true,
+    navigatorPosition: "BOTTOM_RIGHT",
+    navigatorAutoFade: true,
+    homeFillsViewer: true,
+    showFullPageControl: false,
+    gestureSettingsMouse: {
+        clickToZoom: true,
+        dblClickToZoom: true,
+        pinchToZoom: true,
+        scrollToZoom: true
+    }
+});
+
+// ---- star layer ----
+// The overlay shares the nebula's pixel grid, so it needs no repositioning; it
+// is added as a second item rather than a second viewer because a second
+// OpenSeadragon instance swallows pointer events and breaks pan and zoom.
+var STAR_SIZE = { Width: "31810", Height: "45863" };
+var STAR_MIN_OPACITY = 0.55;
+var starItem = null;
+var starsHidden = false;
+
+viewer.addOnceHandler("open", function () {
+    viewer.addTiledImage({
+        tileSource: {
+            Image: {
+                xmlns: "http://schemas.microsoft.com/deepzoom/2008",
+                Url: "cygnus_stars_v9_files/",
+                Format: "webp",
+                Overlap: "0",
+                TileSize: "512",
+                Size: STAR_SIZE
+            }
+        },
+        compositeOperation: "lighter",
+        success: function (event) {
+            starItem = event.item;
+            applyStarOpacity();
+        }
+    });
+});
+
+// Unresolved stars are a real part of the exposure but they pile up into a haze
+// once a screenful covers thousands of them, which flattens the dust lanes.
+// Rather than deleting the faint end from the data, the layer is faded out as
+// the view zooms away from 1:1, where the same light reads as individual stars.
+// A viewport zoom of one means the image width exactly fills the container, so
+// the screen pixels each image pixel occupies follow directly from the ratio of
+// the two widths.
+function screenPixelsPerImagePixel() {
+    var container = viewer.viewport.getContainerSize();
+    return viewer.viewport.getZoom(true) * container.x / Number(STAR_SIZE.Width);
+}
+
+function applyStarOpacity() {
+    if (!starItem) return;
+    if (starsHidden) {
+        starItem.setOpacity(0);
+        return;
+    }
+    var ratio = screenPixelsPerImagePixel();
+    var low = Math.log(1 / 8) / Math.LN2;
+    var high = 0;
+    var here = Math.log(Math.max(ratio, 1e-6)) / Math.LN2;
+    var t = Math.max(0, Math.min(1, (here - low) / (high - low)));
+    starItem.setOpacity(STAR_MIN_OPACITY + (1 - STAR_MIN_OPACITY) * t);
+}
+
+viewer.addHandler("zoom", applyStarOpacity);
+viewer.addHandler("animation-finish", applyStarOpacity);
+
+var starBtn = document.getElementById("starBtn");
+starBtn.addEventListener("click", function () {
+    starsHidden = starBtn.classList.toggle("off");
+    starBtn.textContent = starsHidden ? "显示星点" : "隐藏星点";
+    applyStarOpacity();
+});
+
+var modeBtn = document.getElementById("modeBtn");
+modeBtn.addEventListener("click", function () {
+    var bw = document.body.classList.toggle("bw");
+    modeBtn.textContent = bw ? "伪彩" : "黑白";
+});
+
+var LIKE_URL = "https://indigo2233--34c7fea4991011f1a4251607ee4eb77e.web.val.run";
+var likeBtn = document.getElementById("likeBtn");
+var liked = localStorage.getItem("cygnusV17Liked") === "1";
+
+function renderLike(count, ok) {
+    likeBtn.textContent = "👍 " + count;
+    if (ok) {
+        liked = true;
+        localStorage.setItem("cygnusV17Liked", "1");
+    }
+    if (liked) {
+        likeBtn.classList.add("liked");
+        likeBtn.title = "已赞过";
+    }
+}
+
+fetch(LIKE_URL)
+    .then(function (r) { return r.json(); })
+    .then(function (j) { renderLike(j.count, false); })
+    .catch(function () {});
+
+likeBtn.addEventListener("click", function () {
+    if (liked) return;
+    fetch(LIKE_URL, { method: "POST" })
+        .then(function (r) { return r.json(); })
+        .then(function (j) { renderLike(j.count, j.ok); })
+        .catch(function () {});
+});
+
+// ---- composition framing ----
+var PIXEL_SCALE = 1.250049823486387; // arcsec per pixel (full resolution)
+var comp = {
+    focal: 250, sensorW: 23.5, sensorH: 15.6,
+    rotation: 0, show: true
+};
+var frameEl = document.getElementById("compFrame");
+var frameOverlay = null;
+
+function compFov() {
+    return [206265 * comp.sensorW / comp.focal, 206265 * comp.sensorH / comp.focal];
+}
+
+function refreshFrame() {
+    var fov = compFov();
+    document.getElementById("fovText").textContent =
+        "视场: " + (fov[0] / 3600).toFixed(2) + "\u00b0 \u00d7 " +
+        (fov[1] / 3600).toFixed(2) + "\u00b0 (" +
+        Math.round(fov[0] / 60) + "\u2032 \u00d7 " + Math.round(fov[1] / 60) + "\u2032)";
+    frameEl.classList.toggle("hidden", !comp.show);
+    if (frameOverlay || viewer.currentOverlays.length) {
+        viewer.clearOverlays();
+        frameOverlay = null;
+    }
+    if (!comp.show || !viewer.world || viewer.world.getItemCount() === 0) return;
+    frameOverlay = viewer.addOverlay({
+        element: frameEl,
+        location: new OpenSeadragon.Point(0, 0),
+        onDraw: function (pos, size, el) {
+            var f = compFov();
+            // Viewport coordinates are normalized by image WIDTH on both axes.
+            var wVp = (f[0] / PIXEL_SCALE) / 31810;
+            var hVp = (f[1] / PIXEL_SCALE) / 31810;
+            var center = viewer.viewport.getCenter(true); // viewport coordinates
+            var p = viewer.viewport.pixelFromPoint(
+                new OpenSeadragon.Point(center.x - wVp / 2, center.y - hVp / 2), true);
+            var s = viewer.viewport.deltaPixelsFromPointsNoRotate(
+                new OpenSeadragon.Point(wVp, hVp), true);
+            el.style.display = "block";
+            el.style.left = p.x + "px";
+            el.style.top = p.y + "px";
+            el.style.width = s.x + "px";
+            el.style.height = s.y + "px";
+            el.style.transformOrigin = "center";
+            el.style.transform = "rotate(" + comp.rotation + "deg)";
+        }
+    });
+}
+
+function bindComp() {
+    var focal = document.getElementById("compFocal");
+    var sensor = document.getElementById("compSensor");
+    var wIn = document.getElementById("compW");
+    var hIn = document.getElementById("compH");
+    var rot = document.getElementById("compRot");
+    var rotVal = document.getElementById("compRotVal");
+    var show = document.getElementById("compShow");
+
+    focal.addEventListener("input", function () {
+        comp.focal = Math.max(10, Number(focal.value) || 250);
+        refreshFrame();
+    });
+    sensor.addEventListener("change", function () {
+        if (sensor.value !== "custom") {
+            var parts = sensor.value.split(",");
+            wIn.value = parts[0];
+            hIn.value = parts[1];
+            comp.sensorW = Number(parts[0]);
+            comp.sensorH = Number(parts[1]);
+        }
+        refreshFrame();
+    });
+    function readSize() {
+        comp.sensorW = Math.max(1, Number(wIn.value) || 23.5);
+        comp.sensorH = Math.max(1, Number(hIn.value) || 15.6);
+        if (sensor.value !== "custom") sensor.value = "custom";
+        refreshFrame();
+    }
+    wIn.addEventListener("input", readSize);
+    hIn.addEventListener("input", readSize);
+    rot.addEventListener("input", function () {
+        comp.rotation = Number(rot.value) % 360;
+        rotVal.textContent = comp.rotation + "\u00b0";
+        refreshFrame();
+    });
+    show.addEventListener("change", function () {
+        comp.show = show.checked;
+        refreshFrame();
+    });
+}
+
+document.getElementById("compBtn").addEventListener("click", function () {
+    var panel = document.getElementById("compPanel");
+    panel.classList.toggle("hidden");
+    this.classList.toggle("on", !panel.classList.contains("hidden"));
+});
+
+bindComp();
+viewer.addOnceHandler("open", function () { refreshFrame(); });
+viewer.addHandler("resize", function () { if (comp.show) refreshFrame(); });
+</script>
+</body>
+</html>

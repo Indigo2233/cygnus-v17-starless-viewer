@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cygnus 4x9 v17 Starless - 伪彩分层浏览</title>
+<title>Cygnus 7x9 v17 Starless - 伪彩分层浏览</title>
 <style>
   html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
   #viewer { position: absolute; inset: 0; width: 100%; height: 100%; }
@@ -23,6 +23,7 @@
     font: 14px/1.4 "Microsoft YaHei", sans-serif; cursor: pointer;
   }
   #modeBtn:hover, #compBtn:hover, #starBtn:hover { background: rgba(60,60,80,0.75); }
+  #starBtn:disabled { color: #888; cursor: default; opacity: 0.7; }
   #starBtn.off { color: #888; }
   body.bw #viewer .openseadragon-canvas { filter: grayscale(1); }
   #compBtn.on { border-color: #4da6ff; color: #4da6ff; }
@@ -82,7 +83,7 @@
 </div>
 <div id="topRight">
   <button id="compBtn" title="构图规划">构图</button>
-  <button id="starBtn" title="显示或隐藏实拍 Ha 星点">隐藏星点</button>
+  <button id="starBtn" title="7x9 星点层尚未上线" disabled>星点待上线</button>
   <button id="modeBtn" title="在伪彩与黑白之间切换">黑白</button>
 </div>
 <div id="compPanel" class="hidden">
@@ -122,7 +123,7 @@ var viewer = OpenSeadragon({
             Format: "jpg",
             Overlap: "0",
             TileSize: "512",
-            Size: { Width: "31810", Height: "45863" }
+            Size: { Width: "55622", Height: "46752" }
         }
     },
     showNavigator: true,
@@ -142,30 +143,13 @@ var viewer = OpenSeadragon({
 // The overlay shares the nebula's pixel grid, so it needs no repositioning; it
 // is added as a second item rather than a second viewer because a second
 // OpenSeadragon instance swallows pointer events and breaks pan and zoom.
-var STAR_SIZE = { Width: "31810", Height: "45863" };
+var STAR_SIZE = { Width: "55622", Height: "46752" };
 var STAR_MIN_OPACITY = 0.55;
 var starItem = null;
-var starsHidden = false;
+var starsHidden = true;
 
-viewer.addOnceHandler("open", function () {
-    viewer.addTiledImage({
-        tileSource: {
-            Image: {
-                xmlns: "http://schemas.microsoft.com/deepzoom/2008",
-                Url: "cygnus_stars_v9_files/",
-                Format: "webp",
-                Overlap: "0",
-                TileSize: "512",
-                Size: STAR_SIZE
-            }
-        },
-        compositeOperation: "lighter",
-        success: function (event) {
-            starItem = event.item;
-            applyStarOpacity();
-        }
-    });
-});
+// The 4x9 star pyramid does not share this 7x9 grid. Gaia matching and
+// colouring of Image01_stars.fit comes next; do not load the old overlay.
 
 // Unresolved stars are a real part of the exposure but they pile up into a haze
 // once a screenful covers thousands of them, which flattens the dust lanes.
@@ -269,8 +253,8 @@ function refreshFrame() {
         onDraw: function (pos, size, el) {
             var f = compFov();
             // Viewport coordinates are normalized by image WIDTH on both axes.
-            var wVp = (f[0] / PIXEL_SCALE) / 31810;
-            var hVp = (f[1] / PIXEL_SCALE) / 31810;
+            var wVp = (f[0] / PIXEL_SCALE) / 55622;
+            var hVp = (f[1] / PIXEL_SCALE) / 55622;
             var center = viewer.viewport.getCenter(true); // viewport coordinates
             var p = viewer.viewport.pixelFromPoint(
                 new OpenSeadragon.Point(center.x - wVp / 2, center.y - hVp / 2), true);

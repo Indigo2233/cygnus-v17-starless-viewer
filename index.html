@@ -83,7 +83,7 @@
 </div>
 <div id="topRight">
   <button id="compBtn" title="构图规划">构图</button>
-  <button id="starBtn" title="7x9 星点层尚未上线" disabled>星点待上线</button>
+  <button id="starBtn" title="显示或隐藏星点">隐藏星点</button>
   <button id="modeBtn" title="在伪彩与黑白之间切换">黑白</button>
 </div>
 <div id="compPanel" class="hidden">
@@ -146,10 +146,27 @@ var viewer = OpenSeadragon({
 var STAR_SIZE = { Width: "55622", Height: "46752" };
 var STAR_MIN_OPACITY = 0.55;
 var starItem = null;
-var starsHidden = true;
+var starsHidden = false;
 
-// The 4x9 star pyramid does not share this 7x9 grid. Gaia matching and
-// colouring of Image01_stars.fit comes next; do not load the old overlay.
+viewer.addOnceHandler("open", function () {
+    viewer.addTiledImage({
+        tileSource: {
+            Image: {
+                xmlns: "http://schemas.microsoft.com/deepzoom/2008",
+                Url: "cygnus_stars_v10_files/",
+                Format: "webp",
+                Overlap: "0",
+                TileSize: "512",
+                Size: STAR_SIZE
+            }
+        },
+        compositeOperation: "lighter",
+        success: function (event) {
+            starItem = event.item;
+            applyStarOpacity();
+        }
+    });
+});
 
 // Unresolved stars are a real part of the exposure but they pile up into a haze
 // once a screenful covers thousands of them, which flattens the dust lanes.

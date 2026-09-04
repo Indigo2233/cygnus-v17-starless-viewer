@@ -6,10 +6,12 @@ true-red / violet pseudocolor mapping (starless, nonlinear input).
 - Full resolution: 55622 x 46752 px
 - Pixel scale: 1.25005 arcsec / px
 - Grayscale toggle for a luminance-only view
+- Star overlay (`cygnus_stars_v10`) coloured from Gaia DR3 / Hipparcos
+  and stretched with the locked v9 asinh + glow curve
 - OpenSeadragon based, works on desktop and mobile browsers
 
-The photographed Ha star layer is being rebuilt for this 7x9 grid (Gaia DR3
-colour on measured residuals). It is not in this snapshot.
+The star layer is composited with `lighter` and fades as you zoom out, so
+unresolved stars do not wash the dust lanes into haze.
 
 Open [index.html](https://indigo2233.github.io/cygnus-v17-starless-viewer/)
 to browse the image like a sky-survey map.
